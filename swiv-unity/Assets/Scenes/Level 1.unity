@@ -585,6 +585,66 @@ Terrain:
   m_GroupingID: 0
   m_RenderingLayerMask: 1
   m_AllowAutoConnect: 1
+--- !u!1 &1888000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1888000002}
+  - component: {fileID: 1888000003}
+  m_Layer: 0
+  m_Name: BuildingSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1888000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1888000001}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 684.5, y: 0, z: 3160}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 8
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1888000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1888000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7c4e9b12f8d4e6a9c0b1d2e3f4a5b6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buildingPrefab: {fileID: 3856683822037015481, guid: e207673eefebf1c47bbf93207ad612e8, type: 3}
+  resourcesPrefabPath: Prefabs/House001
+  areaCenter: {x: 684.5, y: 0, z: 3160}
+  areaRadius: 550
+  settlementCount: 7
+  buildingsPerSettlementMin: 4
+  buildingsPerSettlementMax: 9
+  scatteredBuildingCount: 28
+  minBuildingSpacing: 28
+  settlementRadius: 55
+  maxSlopeDegrees: 28
+  yOffset: 0
+  maxPlacementAttempts: 40
+  randomSeed: 1337
+  useRandomSeed: 1
+  scaleRange: {x: 4.5, y: 7}
+  randomYaw: 1
 --- !u!4 &377468592487583674 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4357745004044851012, guid: e207673eefebf1c47bbf93207ad612e8, type: 3}
