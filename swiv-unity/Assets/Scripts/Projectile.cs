@@ -22,7 +22,11 @@ public class Projectile : MonoBehaviour {
         age = 0f;
         hasExploded = false;
 
-        transform.localScale = Vector3.one * def.projectileScale;
+        // Multiply (not overwrite) so prefabs authored with a non-uniform root scale
+        // (e.g. Napalm's squat canister, Plasma's thin bolt) keep their proportions —
+        // the sphere fallback and Rockets/HomingMissiles' empty-root prefabs default to
+        // (1,1,1) anyway, so this is a no-op change for them.
+        transform.localScale = Vector3.Scale(transform.localScale, Vector3.one * def.projectileScale);
         transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
 
         var col = GetComponent<SphereCollider>();
