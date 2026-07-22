@@ -28,6 +28,9 @@ internal static class WeaponVisuals {
             case WeaponType.HomingMissiles:
                 SpawnFireballImpact(point, def);
                 break;
+            case WeaponType.Napalm:
+                SpawnFireSplashImpact(point, def);
+                break;
             default:
                 break;
         }
@@ -50,6 +53,19 @@ internal static class WeaponVisuals {
             midColor: new Color(1f, 0.4f, 0.05f, 0.9f),
             endColor: new Color(0.3f, 0.05f, 0f, 0f),
             sizeMulEnd: 0.2f, destroyAfter: 0.9f
+        );
+    }
+
+    static void SpawnFireSplashImpact(Vector3 point, WeaponDefinition def) {
+        ExplosionUtil.SpawnFlash(point, def.explosionRadius, def.projectileColor);
+        ExplosionUtil.SpawnParticleBurst(
+            "NapalmSplash", point,
+            burstCount: 24, startSpeed: 7f, startSize: 1.4f, lifetime: 0.9f, gravity: 0.1f,
+            sphereRadius: Mathf.Max(1f, def.burnRadius * 0.5f),
+            startColor: new Color(1f, 0.6f, 0.15f, 0.9f),
+            midColor: new Color(1f, 0.3f, 0.05f, 0.6f),
+            endColor: new Color(0.2f, 0.05f, 0f, 0f),
+            sizeMulEnd: 1.6f, destroyAfter: 1.3f
         );
     }
 

@@ -35,7 +35,62 @@ public class BurnZone : MonoBehaviour {
             zone.meshRenderer.material.color = new Color(1f, 0.35f, 0.05f, 0.55f);
         }
 
+        zone.SpawnFlameEmitter(go.transform, radius);
+
         return zone;
+    }
+
+    void SpawnFlameEmitter(Transform parent, float radius) {
+        var go = new GameObject("BurnZoneFlames");
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = Vector3.up * 0.1f;
+
+        var ps = go.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.loop = true;
+        main.startLifetime = 0.6f;
+        main.startSpeed = 1.5f;
+        main.startSize = 0.6f;
+        main.startColor = new Color(1f, 0.5f, 0.1f, 0.8f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = -0.15f;
+        main.playOnAwake = true;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 18f;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = radius * 0.9f;
+        shape.rotation = new Vector3(-90f, 0f, 0f);
+
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[] {
+                new GradientColorKey(new Color(1f, 0.9f, 0.4f), 0f),
+                new GradientColorKey(new Color(1f, 0.3f, 0.05f), 0.5f),
+                new GradientColorKey(new Color(0.2f, 0.05f, 0f), 1f)
+            },
+            new[] {
+                new GradientAlphaKey(0.85f, 0f),
+                new GradientAlphaKey(0.5f, 0.5f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        colorOverLifetime.color = gradient;
+
+        var renderer = go.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null) {
+            Material mat = new Material(Shader.Find("Particles/Standard Unlit"));
+            if (mat.shader == null || mat.shader.name == "Hidden/InternalErrorShader") {
+                mat = new Material(Shader.Find("Sprites/Default"));
+            }
+            renderer.material = mat;
+        }
+
+        ps.Play();
     }
 
     void Update() {

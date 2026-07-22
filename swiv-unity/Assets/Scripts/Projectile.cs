@@ -13,6 +13,7 @@ public class Projectile : MonoBehaviour {
     float age;
     bool hasExploded;
     TrailRenderer trail;
+    float tumbleAngle;
 
     public void Initialize(WeaponDefinition def, Transform ownerTransform, Vector3 direction) {
         definition = def;
@@ -104,7 +105,13 @@ public class Projectile : MonoBehaviour {
 
         transform.position += velocity * Time.deltaTime;
         if (velocity.sqrMagnitude > 0.001f) {
-            transform.rotation = Quaternion.LookRotation(velocity.normalized, Vector3.up);
+            Quaternion facing = Quaternion.LookRotation(velocity.normalized, Vector3.up);
+            if (definition.type == WeaponType.Napalm) {
+                tumbleAngle += 220f * Time.deltaTime;
+                transform.rotation = facing * Quaternion.Euler(tumbleAngle, 0f, 0f);
+            } else {
+                transform.rotation = facing;
+            }
         }
     }
 
