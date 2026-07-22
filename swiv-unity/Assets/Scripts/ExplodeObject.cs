@@ -101,8 +101,8 @@ public class ExplodeObject : MonoBehaviour {
             rigidBody.isKinematic = false;
             rigidBody.useGravity = true;
             rigidBody.mass = Random.Range(0.4f, 2.5f);
-            rigidBody.drag = 0.15f;
-            rigidBody.angularDrag = 0.35f;
+            rigidBody.linearDamping = 0.15f;
+            rigidBody.angularDamping = 0.35f;
 
             if (fragment.GetComponent<Collider>() == null) {
                 fragment.gameObject.AddComponent<BoxCollider>();
