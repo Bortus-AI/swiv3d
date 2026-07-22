@@ -322,6 +322,14 @@ public class PlayerWeapons : MonoBehaviour {
         ammo[type] = Mathf.Min(def.maxAmmo, ammo[type] + amount);
     }
 
+    /// <summary>Jump the special-weapon selector to a type (used by supply-pad reloads).</summary>
+    public void SelectSpecial(WeaponType type) {
+        int idx = specialOrder.IndexOf(type);
+        if (idx >= 0) {
+            specialIndex = idx;
+        }
+    }
+
     void FireProjectile(WeaponDefinition def) {
         Vector3 origin = firePoint.position;
         // Fire roughly along heli forward; slight downward bias helps ground targets.
@@ -412,7 +420,8 @@ public class PlayerWeapons : MonoBehaviour {
         string text =
             "Primary: Plasma (LMB hold)\n" +
             $"Special: {def.displayName}  [{ammoText}]  (RMB)\n" +
-            "Scroll / 1-4: switch specials";
-        GUI.Box(new Rect(pad, Screen.height - 90f - pad, 340f, 90f), text, style);
+            "Scroll / 1-4: switch specials\n" +
+            "Hover yellow-arrow pads to winch ammo";
+        GUI.Box(new Rect(pad, Screen.height - 110f - pad, 360f, 110f), text, style);
     }
 }

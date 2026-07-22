@@ -71,17 +71,38 @@ public class Projectile : MonoBehaviour {
         if (trail == null) {
             trail = gameObject.AddComponent<TrailRenderer>();
         }
-        trail.time = 0.25f;
-        trail.startWidth = def.projectileScale * 0.6f;
-        trail.endWidth = 0.02f;
+        // Plasma is a glowing ball — short soft halo trail. Specials keep a longer smoke streak.
+        bool plasmaBall = def.type == WeaponType.Plasma;
+        trail.time = plasmaBall ? 0.08f : 0.25f;
+        trail.startWidth = plasmaBall ? def.projectileScale * 2.2f : def.projectileScale * 0.6f;
+        trail.endWidth = plasmaBall ? 0.05f : 0.02f;
         trail.material = new Material(Shader.Find("Sprites/Default"));
         trail.startColor = def.projectileColor;
         trail.endColor = new Color(def.projectileColor.r, def.projectileColor.g, def.projectileColor.b, 0f);
-        trail.minVertexDistance = 0.2f;
+        trail.minVertexDistance = plasmaBall ? 0.05f : 0.2f;
+        // Stronger emission on plasma so the sphere reads as an energy ball, not a dull marble.
+        if (plasmaBall) {
+            for (int i = 0; i < renderers.Length; i++) {
+                var renderer = renderers[i];
+                if (renderer.material != null && renderer.material.HasProperty("_EmissionColor")) {
+                    renderer.material.EnableKeyword("_EMISSION");
+                    renderer.material.SetColor("_EmissionColor", def.projectileColor * 4f);
+                    if (renderer.material.HasProperty("_Color")) {
+                        var c = def.projectileColor;
+                        renderer.material.color = new Color(
+                            Mathf.Min(1f, c.r * 1.4f),
+                            Mathf.Min(1f, c.g * 1.4f),
+                            Mathf.Min(1f, c.b * 1.4f),
+                            1f
+                        );
+                    }
+                }
+            }
+        }
     }
 
     void Update() {
-        if (hasExploded) {
+        if (hasExploded || definition == null) {
             return;
         }
 
@@ -213,7 +234,16 @@ public class Projectile : MonoBehaviour {
         var go = BuildVisualRoot(def.type);
         go.name = def.type + "Projectile";
         go.transform.position = position;
-        var projectile = go.AddComponent<Projectile>();
+        // Prefer an existing component (if a prefab ever ships with one) so we never
+        // end up with two Projectiles — an uninitialized duplicate spams NREs in Update.
+        var projectile = go.GetComponent<Projectile>();
+        if (projectile == null) {
+            projectile = go.AddComponent<Projectile>();
+        }
+        // SphereCollider is required; ensure it exists before stripping extras.
+        if (go.GetComponent<SphereCollider>() == null) {
+            go.AddComponent<SphereCollider>();
+        }
         RemoveExtraColliders(go, go.GetComponent<SphereCollider>());
         projectile.Initialize(def, owner, direction);
         return projectile;
