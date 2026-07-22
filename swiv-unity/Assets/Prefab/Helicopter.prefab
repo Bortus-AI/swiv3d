@@ -131,7 +131,7 @@ ParticleSystem:
   emitterVelocityMode: 1
   looping: 1
   prewarm: 0
-  playOnAwake: 1
+  playOnAwake: 0
   useUnscaledTime: 0
   autoRandomSeed: 1
   startDelay:
@@ -197,8 +197,8 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 5
-      minScalar: 5
+      scalar: 0.35
+      minScalar: 0.35
       maxCurve:
         serializedVersion: 2
         m_Curve:
@@ -5028,6 +5028,7 @@ GameObject:
   - component: {fileID: 362060876}
   - component: {fileID: 6947608623606528015}
   - component: {fileID: 531180549084940495}
+  - component: {fileID: 1149000000000000001}
   m_Layer: 0
   m_Name: Helicopter
   m_TagString: Untagged
@@ -5181,6 +5182,32 @@ MonoBehaviour:
   descendSpeed: 1
   pitchResponse: 35
   rollResponse: 35
+--- !u!114 &1149000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2846575741824151244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ef5f420f79e40b99e210567aa64ea3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  firePoint: {fileID: 0}
+  machineGunParticles: {fileID: 5021277702296237628}
+  firePointForwardOffset: 2.5
+  firePointDownOffset: 0.4
+  weaponAudio: {fileID: 0}
+  plasmaClip: {fileID: 8300000, guid: 15effd82ece3b6543bbe0585c0fa8fbe, type: 3}
+  rocketClip: {fileID: 8300000, guid: d6ca6947f85f7d3419f1d3f18ce59a3f, type: 3}
+  missileClip: {fileID: 8300000, guid: c720977b948c1d94da642d082890199f, type: 3}
+  napalmClip: {fileID: 8300000, guid: 9b15c5645cc66ed40b4337c041b5ebc0, type: 3}
+  smartBombClip: {fileID: 8300000, guid: eaeaa3577b308c64cb9b2b1f5852fb1b, type: 3}
+  emptyClip: {fileID: 8300000, guid: a820be00041a3984b81a521796b76f0e, type: 3}
+  switchClip: {fileID: 8300000, guid: 643e1cf1e7c23a445a3f42f17f768f23, type: 3}
+  weaponOverrides: []
+  showHud: 1
 --- !u!1 &4084703890996733746
 GameObject:
   m_ObjectHideFlags: 0
