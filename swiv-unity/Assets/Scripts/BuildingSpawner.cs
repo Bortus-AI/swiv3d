@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// Populates the map with destructible buildings (House001) snapped to terrain.
-/// Spawns both clustered settlements and scattered outposts around a center point.
+/// Centers on the player helicopter so buildings always appear in the play area.
 /// </summary>
 public class BuildingSpawner : MonoBehaviour {
     [Header("Prefab")]
@@ -12,37 +12,43 @@ public class BuildingSpawner : MonoBehaviour {
     [SerializeField] string resourcesPrefabPath = "Prefabs/House001";
 
     [Header("Placement area")]
-    [Tooltip("World XZ center for the populated region. Defaults to this transform.")]
+    [Tooltip("Used only if no helicopter is found at runtime.")]
     [SerializeField] Vector3 areaCenter = new Vector3(684f, 0f, 3160f);
-    [SerializeField] float areaRadius = 550f;
+    [SerializeField] bool centerOnPlayer = true;
+    [SerializeField] float areaRadius = 450f;
     [SerializeField] int settlementCount = 7;
     [SerializeField] int buildingsPerSettlementMin = 4;
     [SerializeField] int buildingsPerSettlementMax = 9;
     [SerializeField] int scatteredBuildingCount = 28;
-    [SerializeField] float minBuildingSpacing = 28f;
-    [SerializeField] float settlementRadius = 55f;
+    [SerializeField] int nearbyRingCount = 12;
+    [SerializeField] float nearbyRingRadius = 55f;
+    [SerializeField] float minBuildingSpacing = 24f;
+    [SerializeField] float settlementRadius = 50f;
 
     [Header("Terrain fit")]
-    [SerializeField] float maxSlopeDegrees = 28f;
-    [SerializeField] float yOffset = 0f;
-    [SerializeField] int maxPlacementAttempts = 40;
+    [SerializeField] float maxSlopeDegrees = 35f;
+    [SerializeField] float yOffset = 0.15f;
+    [SerializeField] float raycastHeight = 800f;
+    [SerializeField] int maxPlacementAttempts = 50;
     [SerializeField] int randomSeed = 1337;
     [SerializeField] bool useRandomSeed = true;
 
     [Header("Variety")]
-    [SerializeField] Vector2 scaleRange = new Vector2(4.5f, 7f);
+    [SerializeField] Vector2 scaleRange = new Vector2(5f, 7.5f);
     [SerializeField] bool randomYaw = true;
 
     readonly List<Vector3> placedPositions = new List<Vector3>();
     Transform buildingsRoot;
+    int spawnedCount;
 
     void Start() {
         StartCoroutine(SpawnWhenReady());
     }
 
     IEnumerator SpawnWhenReady() {
-        // Wait until physics/terrain colliders are ready for ground snaps.
+        // Wait for terrain colliders + LoadTerrain first reposition.
         yield return new WaitForFixedUpdate();
+        yield return new WaitForEndOfFrame();
         yield return null;
 
         if (useRandomSeed) {
@@ -57,26 +63,73 @@ public class BuildingSpawner : MonoBehaviour {
             yield break;
         }
 
-        buildingsRoot = new GameObject("Buildings").transform;
-        buildingsRoot.SetParent(transform, false);
+        ResolveAreaCenter();
 
-        // Keep the hand-placed Level 1 house as a seed position so we do not overlap it.
+        buildingsRoot = new GameObject("Buildings").transform;
+        // Keep root at world origin so child world positions stay simple.
+        buildingsRoot.position = Vector3.zero;
+        buildingsRoot.rotation = Quaternion.identity;
+        buildingsRoot.localScale = Vector3.one;
+
         foreach (var existing in FindObjectsOfType<ExplodeObject>()) {
             if (existing != null) {
-                placedPositions.Add(existing.transform.position);
+                placedPositions.Add(Flatten(existing.transform.position));
             }
         }
+        int preExisting = placedPositions.Count;
 
+        // Guaranteed nearby buildings so something is always visible around the heli.
+        SpawnNearbyRing();
         SpawnSettlements();
         SpawnScattered();
 
-        Debug.Log("BuildingSpawner: placed " + placedPositions.Count + " buildings (including pre-existing).");
+        // Second-pass snap: terrain may have shifted one more frame after first placements.
+        yield return new WaitForFixedUpdate();
+        ResnapAllSpawned();
+
+        Debug.Log(
+            "BuildingSpawner: spawned " + spawnedCount +
+            " buildings (" + preExisting + " pre-existing). Center=" + areaCenter +
+            " firstSpawnDist=" + FirstSpawnDistanceToCenter().ToString("F1")
+        );
+    }
+
+    void ResolveAreaCenter() {
+        if (!centerOnPlayer) {
+            return;
+        }
+
+        var heli = FindObjectOfType<HelicopterMovement>();
+        if (heli != null) {
+            areaCenter = heli.transform.position;
+            return;
+        }
+
+        var weapons = FindObjectOfType<PlayerWeapons>();
+        if (weapons != null) {
+            areaCenter = weapons.transform.position;
+        }
+    }
+
+    void SpawnNearbyRing() {
+        for (int i = 0; i < nearbyRingCount; i++) {
+            float angle = (i / (float)nearbyRingCount) * Mathf.PI * 2f;
+            // Two radii for a denser near field.
+            float radius = (i % 2 == 0) ? nearbyRingRadius : nearbyRingRadius * 1.7f;
+            Vector3 probe = areaCenter + new Vector3(Mathf.Cos(angle) * radius, raycastHeight, Mathf.Sin(angle) * radius);
+            if (SampleGround(probe, out Vector3 ground, out float slope) && slope <= maxSlopeDegrees + 10f) {
+                // Nearby ring is allowed slightly closer together.
+                if (IsFarEnough(ground, minBuildingSpacing * 0.65f)) {
+                    SpawnBuilding(ground);
+                }
+            }
+        }
     }
 
     void SpawnSettlements() {
         for (int s = 0; s < settlementCount; s++) {
             Vector3 hub;
-            if (!TryFindFlatSpot(areaCenter, areaRadius * 0.9f, out hub)) {
+            if (!TryFindFlatSpot(areaCenter, areaRadius * 0.85f, out hub)) {
                 continue;
             }
 
@@ -104,7 +157,7 @@ public class BuildingSpawner : MonoBehaviour {
     bool TryFindFlatSpot(Vector3 center, float radius, out Vector3 worldPos) {
         for (int attempt = 0; attempt < maxPlacementAttempts; attempt++) {
             Vector2 offset = Random.insideUnitCircle * radius;
-            Vector3 probe = new Vector3(center.x + offset.x, center.y + 500f, center.z + offset.y);
+            Vector3 probe = new Vector3(center.x + offset.x, center.y + raycastHeight, center.z + offset.y);
 
             if (!SampleGround(probe, out Vector3 ground, out float slopeDegrees)) {
                 continue;
@@ -112,7 +165,7 @@ public class BuildingSpawner : MonoBehaviour {
             if (slopeDegrees > maxSlopeDegrees) {
                 continue;
             }
-            if (!IsFarEnough(ground)) {
+            if (!IsFarEnough(ground, minBuildingSpacing)) {
                 continue;
             }
 
@@ -128,34 +181,71 @@ public class BuildingSpawner : MonoBehaviour {
         ground = above;
         slopeDegrees = 90f;
 
-        // Prefer physics raycast so we hit the active TerrainCollider even as LoadTerrain shifts it.
-        if (Physics.Raycast(above, Vector3.down, out RaycastHit hit, 2000f, ~0, QueryTriggerInteraction.Ignore)) {
-            ground = hit.point + Vector3.up * yOffset;
-            slopeDegrees = Vector3.Angle(hit.normal, Vector3.up);
-            return true;
+        // 1) Physics raycast against terrain / world colliders.
+        Vector3 origin = new Vector3(above.x, Mathf.Max(above.y, raycastHeight), above.z);
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, raycastHeight * 3f, ~0, QueryTriggerInteraction.Ignore)) {
+            // Ignore hits on the player vehicle.
+            if (hit.collider != null && hit.collider.GetComponentInParent<HelicopterMovement>() != null) {
+                // fall through to terrain sample
+            } else {
+                ground = hit.point + Vector3.up * yOffset;
+                slopeDegrees = Vector3.Angle(hit.normal, Vector3.up);
+                return true;
+            }
         }
 
-        Terrain terrain = Terrain.activeTerrain;
-        if (terrain != null) {
-            float y = terrain.SampleHeight(above) + terrain.transform.position.y + yOffset;
-            ground = new Vector3(above.x, y, above.z);
-            Vector3 normal = terrain.terrainData.GetInterpolatedNormal(
-                (above.x - terrain.transform.position.x) / terrain.terrainData.size.x,
-                (above.z - terrain.transform.position.z) / terrain.terrainData.size.z
-            );
-            slopeDegrees = Vector3.Angle(normal, Vector3.up);
-            return true;
+        // 2) Terrain height sample (works even if collider is briefly unavailable).
+        Terrain terrain = FindBestTerrain(above);
+        if (terrain != null && terrain.terrainData != null) {
+            Vector3 tpos = terrain.transform.position;
+            Vector3 size = terrain.terrainData.size;
+            float nx = (above.x - tpos.x) / size.x;
+            float nz = (above.z - tpos.z) / size.z;
+            if (nx >= 0f && nx <= 1f && nz >= 0f && nz <= 1f) {
+                float y = terrain.SampleHeight(above) + tpos.y + yOffset;
+                ground = new Vector3(above.x, y, above.z);
+                Vector3 normal = terrain.terrainData.GetInterpolatedNormal(nx, nz);
+                slopeDegrees = Vector3.Angle(normal, Vector3.up);
+                return true;
+            }
         }
 
         return false;
     }
 
-    bool IsFarEnough(Vector3 pos) {
-        float minSq = minBuildingSpacing * minBuildingSpacing;
+    Terrain FindBestTerrain(Vector3 worldPos) {
+        Terrain active = Terrain.activeTerrain;
+        if (active != null) {
+            return active;
+        }
+
+        Terrain[] terrains = Terrain.activeTerrains;
+        if (terrains == null || terrains.Length == 0) {
+            return null;
+        }
+
+        Terrain best = terrains[0];
+        float bestDist = float.MaxValue;
+        for (int i = 0; i < terrains.Length; i++) {
+            Terrain t = terrains[i];
+            if (t == null) {
+                continue;
+            }
+            Vector3 c = t.transform.position + t.terrainData.size * 0.5f;
+            float d = (Flatten(c) - Flatten(worldPos)).sqrMagnitude;
+            if (d < bestDist) {
+                bestDist = d;
+                best = t;
+            }
+        }
+        return best;
+    }
+
+    bool IsFarEnough(Vector3 pos, float minSpacing) {
+        float minSq = minSpacing * minSpacing;
+        Vector3 flat = Flatten(pos);
         for (int i = 0; i < placedPositions.Count; i++) {
-            Vector3 delta = placedPositions[i] - pos;
-            delta.y = 0f;
-            if (delta.sqrMagnitude < minSq) {
+            if ((placedPositions[i] - flat).sqrMagnitude < minSq) {
                 return false;
             }
         }
@@ -164,12 +254,53 @@ public class BuildingSpawner : MonoBehaviour {
 
     void SpawnBuilding(Vector3 position) {
         float yaw = randomYaw ? Random.Range(0f, 360f) : 0f;
-        GameObject building = Instantiate(buildingPrefab, position, Quaternion.Euler(0f, yaw, 0f), buildingsRoot);
-
         float scale = Random.Range(scaleRange.x, scaleRange.y);
-        building.transform.localScale = Vector3.one * scale;
 
-        // Ensure damage + explode wiring even if prefab was stripped somehow.
+        // Instantiate unparented first so position is unambiguous world space.
+        GameObject building = Instantiate(buildingPrefab);
+        building.name = "Building_" + spawnedCount;
+        building.SetActive(true);
+        building.transform.position = position;
+        building.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        building.transform.localScale = Vector3.one * scale;
+        if (buildingsRoot != null) {
+            building.transform.SetParent(buildingsRoot, true);
+        }
+
+        EnsureVisible(building);
+        EnsureGameplayComponents(building);
+
+        placedPositions.Add(Flatten(position));
+        spawnedCount++;
+    }
+
+    void EnsureVisible(GameObject building) {
+        // Intact mesh must be on; fragments stay off until explode.
+        Transform intact = building.transform.Find("House001Intact");
+        if (intact != null) {
+            intact.gameObject.SetActive(true);
+            var renderers = intact.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++) {
+                renderers[i].enabled = true;
+            }
+        }
+
+        Transform frags = building.transform.Find("House001Fragments");
+        if (frags != null) {
+            frags.gameObject.SetActive(false);
+        }
+
+        // Make sure nothing on the root disabled the whole object.
+        building.SetActive(true);
+        foreach (Transform child in building.transform) {
+            // Only force-enable intact branch.
+            if (child.name.Contains("Intact")) {
+                child.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    void EnsureGameplayComponents(GameObject building) {
         if (building.GetComponent<Damageable>() == null) {
             building.AddComponent<Damageable>();
         }
@@ -181,7 +312,31 @@ public class BuildingSpawner : MonoBehaviour {
             box.size = new Vector3(2.2f, 2.2f, 2.2f);
             box.center = new Vector3(0f, 0.9f, 0f);
         }
+    }
 
-        placedPositions.Add(position);
+    void ResnapAllSpawned() {
+        if (buildingsRoot == null) {
+            return;
+        }
+
+        for (int i = 0; i < buildingsRoot.childCount; i++) {
+            Transform b = buildingsRoot.GetChild(i);
+            Vector3 probe = b.position + Vector3.up * raycastHeight;
+            if (SampleGround(probe, out Vector3 ground, out _)) {
+                b.position = ground;
+            }
+            EnsureVisible(b.gameObject);
+        }
+    }
+
+    static Vector3 Flatten(Vector3 v) {
+        return new Vector3(v.x, 0f, v.z);
+    }
+
+    float FirstSpawnDistanceToCenter() {
+        if (buildingsRoot == null || buildingsRoot.childCount == 0) {
+            return -1f;
+        }
+        return Vector3.Distance(Flatten(buildingsRoot.GetChild(0).position), Flatten(areaCenter));
     }
 }

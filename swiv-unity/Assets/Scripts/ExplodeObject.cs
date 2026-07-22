@@ -27,6 +27,15 @@ public class ExplodeObject : MonoBehaviour {
 
     void Awake() {
         AutoWireIfNeeded();
+        // Always show the intact mesh on spawn; only hide it when exploding.
+        if (intactObject != null) {
+            intactObject.gameObject.SetActive(true);
+        } else {
+            var intact = transform.Find("House001Intact");
+            if (intact != null) {
+                intact.gameObject.SetActive(true);
+            }
+        }
         if (!enableFragmentsOnStart) {
             SetFragmentsActive(false);
         }
