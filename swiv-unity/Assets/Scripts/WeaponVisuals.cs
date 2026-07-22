@@ -31,6 +31,9 @@ internal static class WeaponVisuals {
             case WeaponType.Napalm:
                 SpawnFireSplashImpact(point, def);
                 break;
+            case WeaponType.Plasma:
+                SpawnSparkImpact(point);
+                break;
             default:
                 break;
         }
@@ -66,6 +69,17 @@ internal static class WeaponVisuals {
             midColor: new Color(1f, 0.3f, 0.05f, 0.6f),
             endColor: new Color(0.2f, 0.05f, 0f, 0f),
             sizeMulEnd: 1.6f, destroyAfter: 1.3f
+        );
+    }
+
+    static void SpawnSparkImpact(Vector3 point) {
+        ExplosionUtil.SpawnParticleBurst(
+            "PlasmaSpark", point,
+            burstCount: 10, startSpeed: 6f, startSize: 0.08f, lifetime: 0.25f, gravity: 1.5f, sphereRadius: 0.15f,
+            startColor: new Color(1f, 0.95f, 0.6f, 1f),
+            midColor: new Color(1f, 0.7f, 0.2f, 0.8f),
+            endColor: new Color(0.3f, 0.1f, 0f, 0f),
+            sizeMulEnd: 0.3f, destroyAfter: 0.6f
         );
     }
 
