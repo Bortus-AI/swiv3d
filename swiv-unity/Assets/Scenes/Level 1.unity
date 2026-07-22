@@ -630,24 +630,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buildingPrefab: {fileID: 3856683822037015481, guid: e207673eefebf1c47bbf93207ad612e8, type: 3}
   resourcesPrefabPath: Prefabs/House001
+  housePrefabChance: 0.28
   areaCenter: {x: 684.5, y: 0, z: 3160}
   centerOnPlayer: 1
-  areaRadius: 450
-  settlementCount: 7
-  buildingsPerSettlementMin: 4
-  buildingsPerSettlementMax: 9
-  scatteredBuildingCount: 28
-  nearbyRingCount: 12
-  nearbyRingRadius: 55
-  minBuildingSpacing: 24
-  settlementRadius: 50
+  areaRadius: 500
+  minDistanceFromPlayer: 140
+  settlementCount: 6
+  buildingsPerSettlementMin: 3
+  buildingsPerSettlementMax: 7
+  scatteredBuildingCount: 22
+  nearbyRingCount: 0
+  nearbyRingRadius: 180
+  minBuildingSpacing: 28
+  settlementRadius: 45
   maxSlopeDegrees: 35
-  yOffset: 0.15
+  groundSink: 0.25
   raycastHeight: 800
-  maxPlacementAttempts: 50
+  maxPlacementAttempts: 60
   randomSeed: 1337
   useRandomSeed: 1
-  scaleRange: {x: 5, y: 7.5}
+  parentToTerrain: 1
+  houseScaleRange: {x: 5, y: 7.5}
   randomYaw: 1
 --- !u!4 &377468592487583674 stripped
 Transform:

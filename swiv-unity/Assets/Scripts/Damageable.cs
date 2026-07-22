@@ -23,6 +23,14 @@ public class Damageable : MonoBehaviour {
         currentHealth = maxHealth;
     }
 
+    /// <summary>Runtime setup for procedurally spawned buildings/enemies.</summary>
+    public void SetMaxHealth(float health) {
+        maxHealth = Mathf.Max(1f, health);
+        if (!isDead) {
+            currentHealth = maxHealth;
+        }
+    }
+
     public void TakeDamage(float amount, Vector3 hitPoint, Vector3 hitDirection) {
         if (isDead || amount <= 0f) {
             return;

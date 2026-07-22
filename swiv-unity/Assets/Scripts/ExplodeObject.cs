@@ -1,18 +1,20 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Fractures a building into rigidbody fragments with explosion VFX/SFX.
+/// Fractures a building into rigidbody fragments with multi-layer explosion VFX/SFX.
 /// Call Explode() from Damageable on death — does not auto-explode on Start.
+/// Works with House001Intact/House001Fragments or generic Intact/Fragments roots.
 /// </summary>
 public class ExplodeObject : MonoBehaviour {
     [Header("Structure")]
     [SerializeField] Transform intactObject;
     [SerializeField] Transform[] fragments;
-    [SerializeField] float minForce = 200f;
-    [SerializeField] float maxForce = 900f;
-    [SerializeField] float radius = 12f;
-    [SerializeField] float upwardModifier = 1.5f;
+    [SerializeField] float minForce = 350f;
+    [SerializeField] float maxForce = 1400f;
+    [SerializeField] float radius = 16f;
+    [SerializeField] float upwardModifier = 2.2f;
     [SerializeField] bool hideIntactOnExplode = true;
     [SerializeField] bool enableFragmentsOnStart = false;
 
@@ -20,21 +22,38 @@ public class ExplodeObject : MonoBehaviour {
     [SerializeField] float debrisLifetime = 10f;
     [SerializeField] float debrisFadeSeconds = 2f;
     [SerializeField] bool playEffects = true;
-    [SerializeField] float effectRadius = 14f;
-    [SerializeField] Color explosionColor = new Color(1f, 0.55f, 0.15f, 1f);
+    [SerializeField] float effectRadius = 16f;
+    [SerializeField] Color explosionColor = new Color(1f, 0.45f, 0.1f, 1f);
 
     bool hasExploded;
+    bool configured;
+
+    /// <summary>Wire intact mesh + debris pieces for procedurally built structures.</summary>
+    public void Configure(Transform intact, Transform[] fragList, float blastRadius = 14f, Color? blastColor = null) {
+        intactObject = intact;
+        fragments = fragList;
+        effectRadius = blastRadius;
+        radius = Mathf.Max(radius, blastRadius * 0.85f);
+        if (blastColor.HasValue) {
+            explosionColor = blastColor.Value;
+        }
+        // Bigger blast radius => stronger debris kick.
+        minForce = Mathf.Max(minForce, blastRadius * 22f);
+        maxForce = Mathf.Max(maxForce, blastRadius * 85f);
+        configured = true;
+        if (!enableFragmentsOnStart) {
+            SetFragmentsActive(false);
+        }
+        if (intactObject != null) {
+            intactObject.gameObject.SetActive(true);
+        }
+    }
 
     void Awake() {
         AutoWireIfNeeded();
         // Always show the intact mesh on spawn; only hide it when exploding.
         if (intactObject != null) {
             intactObject.gameObject.SetActive(true);
-        } else {
-            var intact = transform.Find("House001Intact");
-            if (intact != null) {
-                intact.gameObject.SetActive(true);
-            }
         }
         if (!enableFragmentsOnStart) {
             SetFragmentsActive(false);
@@ -42,23 +61,44 @@ public class ExplodeObject : MonoBehaviour {
     }
 
     void AutoWireIfNeeded() {
+        if (configured && intactObject != null && fragments != null && fragments.Length > 0) {
+            return;
+        }
+
         if (intactObject == null) {
-            var intact = transform.Find("House001Intact");
-            if (intact != null) {
-                intactObject = intact;
-            }
+            intactObject = FindChildByNames(transform, "House001Intact", "Intact");
         }
 
         if (fragments == null || fragments.Length == 0) {
-            var fragRoot = transform.Find("House001Fragments");
+            Transform fragRoot = FindChildByNames(transform, "House001Fragments", "Fragments");
             if (fragRoot != null) {
-                var list = new System.Collections.Generic.List<Transform>();
+                var list = new List<Transform>();
                 for (int i = 0; i < fragRoot.childCount; i++) {
                     list.Add(fragRoot.GetChild(i));
                 }
                 fragments = list.ToArray();
             }
         }
+    }
+
+    static Transform FindChildByNames(Transform root, params string[] names) {
+        for (int n = 0; n < names.Length; n++) {
+            Transform t = root.Find(names[n]);
+            if (t != null) {
+                return t;
+            }
+        }
+        // Fallback: any direct child whose name contains the key tokens.
+        for (int i = 0; i < root.childCount; i++) {
+            Transform child = root.GetChild(i);
+            string lower = child.name.ToLowerInvariant();
+            for (int n = 0; n < names.Length; n++) {
+                if (lower.Contains(names[n].ToLowerInvariant())) {
+                    return child;
+                }
+            }
+        }
+        return null;
     }
 
     public void Explode() {
@@ -74,13 +114,19 @@ public class ExplodeObject : MonoBehaviour {
 
         AutoWireIfNeeded();
 
+        // Prefer building center for a symmetric blast.
+        Vector3 blastCenter = intactObject != null ? intactObject.position : transform.position;
+        if (origin.sqrMagnitude > 0.01f) {
+            // Blend hit point toward building center so debris still flies outward.
+            blastCenter = Vector3.Lerp(blastCenter, origin, 0.35f);
+        }
+
         if (hideIntactOnExplode && intactObject != null) {
             intactObject.gameObject.SetActive(false);
         }
 
         if (playEffects) {
-            ExplosionUtil.SpawnFlash(origin + Vector3.up * 1.5f, effectRadius, explosionColor);
-            SpawnDustBurst(origin);
+            ExplosionUtil.SpawnBuildingBlast(blastCenter, effectRadius, explosionColor);
         }
 
         if (fragments == null || fragments.Length == 0) {
@@ -100,79 +146,27 @@ public class ExplodeObject : MonoBehaviour {
             }
             rigidBody.isKinematic = false;
             rigidBody.useGravity = true;
-            rigidBody.mass = Random.Range(0.4f, 2.5f);
-            rigidBody.linearDamping = 0.15f;
-            rigidBody.angularDamping = 0.35f;
+            rigidBody.mass = Random.Range(0.5f, 3.2f);
+            rigidBody.linearDamping = 0.12f;
+            rigidBody.angularDamping = 0.25f;
+            rigidBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             if (fragment.GetComponent<Collider>() == null) {
                 fragment.gameObject.AddComponent<BoxCollider>();
             }
 
             float force = Random.Range(minForce, maxForce);
-            rigidBody.AddExplosionForce(force, origin, radius, upwardModifier, ForceMode.Impulse);
-            rigidBody.AddTorque(Random.insideUnitSphere * force * 0.05f, ForceMode.Impulse);
+            // Extra kick for pieces further from center so the structure rips apart.
+            float dist = Vector3.Distance(fragment.position, blastCenter);
+            force *= Mathf.Lerp(1.15f, 0.75f, Mathf.Clamp01(dist / Mathf.Max(1f, radius)));
+
+            rigidBody.AddExplosionForce(force, blastCenter, radius, upwardModifier, ForceMode.Impulse);
+            rigidBody.AddTorque(Random.insideUnitSphere * force * 0.08f, ForceMode.Impulse);
         }
 
         if (debrisLifetime > 0f) {
             StartCoroutine(CleanupDebris());
         }
-    }
-
-    void SpawnDustBurst(Vector3 origin) {
-        var dust = new GameObject("BuildingDust");
-        dust.transform.position = origin + Vector3.up * 0.5f;
-
-        var ps = dust.AddComponent<ParticleSystem>();
-        var main = ps.main;
-        main.duration = 0.4f;
-        main.loop = false;
-        main.startLifetime = 1.2f;
-        main.startSpeed = 8f;
-        main.startSize = 2.5f;
-        main.startColor = new Color(0.35f, 0.3f, 0.25f, 0.75f);
-        main.gravityModifier = 0.35f;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 48;
-        main.playOnAwake = false;
-
-        var emission = ps.emission;
-        emission.rateOverTime = 0f;
-        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 36) });
-
-        var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 1.5f;
-
-        var colorOverLifetime = ps.colorOverLifetime;
-        colorOverLifetime.enabled = true;
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(
-            new[] {
-                new GradientColorKey(new Color(0.45f, 0.38f, 0.3f), 0f),
-                new GradientColorKey(new Color(0.2f, 0.18f, 0.15f), 1f)
-            },
-            new[] {
-                new GradientAlphaKey(0.8f, 0f),
-                new GradientAlphaKey(0f, 1f)
-            }
-        );
-        colorOverLifetime.color = gradient;
-
-        var sizeOverLifetime = ps.sizeOverLifetime;
-        sizeOverLifetime.enabled = true;
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 2.5f));
-
-        var renderer = dust.GetComponent<ParticleSystemRenderer>();
-        if (renderer != null) {
-            renderer.material = new Material(Shader.Find("Particles/Standard Unlit"));
-            if (renderer.material.shader == null || renderer.material.shader.name == "Hidden/InternalErrorShader") {
-                renderer.material = new Material(Shader.Find("Sprites/Default"));
-            }
-            renderer.material.color = new Color(0.4f, 0.35f, 0.3f, 0.7f);
-        }
-
-        ps.Play();
-        Destroy(dust, 3f);
     }
 
     IEnumerator CleanupDebris() {
@@ -183,7 +177,7 @@ public class ExplodeObject : MonoBehaviour {
         }
 
         float fadeEnd = Time.time + debrisFadeSeconds;
-        var renderers = new System.Collections.Generic.List<Renderer>();
+        var renderers = new List<Renderer>();
         foreach (Transform fragment in fragments) {
             if (fragment == null) {
                 continue;
@@ -207,7 +201,6 @@ public class ExplodeObject : MonoBehaviour {
                 if (r == null || r.material == null) {
                     continue;
                 }
-                // Best-effort fade for standard materials.
                 if (r.material.HasProperty("_Color")) {
                     Color c = r.material.color;
                     c.a = 1f - t;
@@ -217,7 +210,6 @@ public class ExplodeObject : MonoBehaviour {
             yield return null;
         }
 
-        // Remove the whole building instance once debris is gone.
         Destroy(gameObject);
     }
 
@@ -225,12 +217,16 @@ public class ExplodeObject : MonoBehaviour {
         if (fragments == null) {
             return;
         }
+
+        // Activate/deactivate the fragments root once if present.
+        Transform fragRoot = FindChildByNames(transform, "House001Fragments", "Fragments");
+        if (fragRoot != null) {
+            fragRoot.gameObject.SetActive(active);
+        }
+
         for (int i = 0; i < fragments.Length; i++) {
             if (fragments[i] == null) {
                 continue;
-            }
-            if (fragments[i].parent != null && fragments[i].parent != transform) {
-                fragments[i].parent.gameObject.SetActive(active);
             }
             fragments[i].gameObject.SetActive(active);
         }
