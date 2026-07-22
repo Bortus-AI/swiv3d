@@ -1,0 +1,38 @@
+{
+  "lastUpdated": "2025-07-18T19:45:00Z",
+  "projectInfo": {
+    "name": "YourProjectName",
+    "version": "0.1.0",
+    "gameEngine": "Unity 6000.2.0b9",
+    "targetPlatform": ["PC"]
+  },
+  "systems": [
+    {
+      "name": "Health System",
+      "description": "Manages health, damage, and death states for game entities.",
+      "keyData": ["HP", "MaxHP", "IsDead"],
+      "relatedComponents": ["HealthComponent", "DamageDealerComponent"],
+      "gddPath": "GameDesignDocument/03_Game_Systems/03_01_Health_System.md",
+      "apiMethods": ["TakeDamage(int)", "Heal(int)", "Die()"],
+      "events": ["OnDamage", "OnDeath", "OnHeal"],
+      "dependencies": [],
+      "dependents": ["Combat System", "UI System"]
+    }
+  ],
+  "dataStructures": {},
+  "codePatterns": {
+    "componentCreation": "Always inherit from MonoBehaviour, use [SerializeField] for inspector fields",
+    "eventHandling": "Use UnityEvents for loose coupling between systems",
+    "dataAccess": "Use ScriptableObjects for game data, avoid singletons"
+  },
+  "dependencyGraph": {
+    "nodes": ["HealthSystem", "CombatSystem", "UISystem"],
+    "edges": [
+      {"from": "CombatSystem", "to": "HealthSystem", "type": "uses"},
+      {"from": "UISystem", "to": "HealthSystem", "type": "observes"}
+    ]
+  },
+  "codeGenerationRules": {},
+  "testingFramework": {},
+  "versionControl": {}
+}
