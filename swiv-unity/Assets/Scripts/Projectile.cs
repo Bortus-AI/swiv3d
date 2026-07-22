@@ -202,8 +202,8 @@ public class Projectile : MonoBehaviour {
         var go = BuildVisualRoot(def.type);
         go.name = def.type + "Projectile";
         go.transform.position = position;
-        RemoveAllColliders(go);
         var projectile = go.AddComponent<Projectile>();
+        RemoveExtraColliders(go, go.GetComponent<SphereCollider>());
         projectile.Initialize(def, owner, direction);
         return projectile;
     }
@@ -216,10 +216,12 @@ public class Projectile : MonoBehaviour {
         return GameObject.CreatePrimitive(PrimitiveType.Sphere);
     }
 
-    static void RemoveAllColliders(GameObject root) {
+    static void RemoveExtraColliders(GameObject root, Collider keep) {
         var colliders = root.GetComponentsInChildren<Collider>();
         for (int i = 0; i < colliders.Length; i++) {
-            Object.Destroy(colliders[i]);
+            if (colliders[i] != keep) {
+                Object.Destroy(colliders[i]);
+            }
         }
     }
 }
