@@ -43,9 +43,12 @@ public class Projectile : MonoBehaviour {
     }
 
     void ApplyVisual(WeaponDefinition def) {
-        var renderer = GetComponent<MeshRenderer>();
-        if (renderer != null && renderer.material != null) {
-            // Use a simple unlit-ish color; Shared material clone to avoid editing defaults.
+        var renderers = GetComponentsInChildren<MeshRenderer>();
+        for (int i = 0; i < renderers.Length; i++) {
+            var renderer = renderers[i];
+            if (renderer.gameObject.name == "SeekerTip" || renderer.material == null) {
+                continue;
+            }
             renderer.material = new Material(renderer.material);
             if (renderer.material.HasProperty("_Color")) {
                 renderer.material.color = def.projectileColor;
@@ -194,16 +197,29 @@ public class Projectile : MonoBehaviour {
         Destroy(gameObject);
     }
 
-    /// <summary>Builds a simple colored sphere projectile at runtime when no prefab is assigned.</summary>
+    /// <summary>Loads the weapon's authored prefab from Resources, or builds a colored sphere as a fallback.</summary>
     public static Projectile CreateRuntime(WeaponDefinition def, Vector3 position, Vector3 direction, Transform owner) {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        var go = BuildVisualRoot(def.type);
         go.name = def.type + "Projectile";
         go.transform.position = position;
-        // Remove default non-trigger collider physics material friction issues.
-        Object.Destroy(go.GetComponent<Collider>());
-        go.AddComponent<SphereCollider>();
+        RemoveAllColliders(go);
         var projectile = go.AddComponent<Projectile>();
         projectile.Initialize(def, owner, direction);
         return projectile;
+    }
+
+    static GameObject BuildVisualRoot(WeaponType type) {
+        var prefab = Resources.Load<GameObject>("Prefabs/Weapons/" + type);
+        if (prefab != null) {
+            return Object.Instantiate(prefab);
+        }
+        return GameObject.CreatePrimitive(PrimitiveType.Sphere);
+    }
+
+    static void RemoveAllColliders(GameObject root) {
+        var colliders = root.GetComponentsInChildren<Collider>();
+        for (int i = 0; i < colliders.Length; i++) {
+            Object.Destroy(colliders[i]);
+        }
     }
 }

@@ -167,7 +167,7 @@ public static class ExplosionUtil {
         fade.startIntensity = light.intensity;
     }
 
-    static void SpawnParticleBurst(
+    internal static void SpawnParticleBurst(
         string name,
         Vector3 position,
         int burstCount,
