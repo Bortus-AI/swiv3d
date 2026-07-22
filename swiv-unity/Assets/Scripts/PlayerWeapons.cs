@@ -327,6 +327,7 @@ public class PlayerWeapons : MonoBehaviour {
         // Fire roughly along heli forward; slight downward bias helps ground targets.
         Vector3 direction = (transform.forward + Vector3.down * 0.05f).normalized;
         Projectile.CreateRuntime(def, origin, direction, transform);
+        WeaponVisuals.SpawnMuzzleFlash(def.type, firePoint);
     }
 
     void FireSmartBomb(WeaponDefinition def) {

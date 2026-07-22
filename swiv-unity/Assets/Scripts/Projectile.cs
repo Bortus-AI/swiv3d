@@ -187,8 +187,8 @@ public class Projectile : MonoBehaviour {
 
         if (definition.explosionRadius > 0f && definition.explosionDamage > 0f) {
             ExplosionUtil.ApplyRadiusDamage(point, definition.explosionRadius, definition.explosionDamage, owner);
-            ExplosionUtil.SpawnFlash(point, definition.explosionRadius, definition.projectileColor);
         }
+        WeaponVisuals.SpawnImpact(definition.type, point, definition, owner);
 
         if (definition.burnDuration > 0f && definition.burnRadius > 0f) {
             BurnZone.Spawn(point, definition.burnRadius, definition.burnDuration, definition.burnDamagePerSecond, owner);
