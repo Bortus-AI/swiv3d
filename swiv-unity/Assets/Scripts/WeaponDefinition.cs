@@ -87,18 +87,19 @@ public class WeaponDefinition {
             case WeaponType.Napalm:
                 return new WeaponDefinition {
                     type = WeaponType.Napalm,
-                    displayName = "Napalm",
+                    displayName = "Napalm Bomb",
                     fireRate = 1f,
                     damage = 20f,
                     maxAmmo = 12,
                     startingAmmo = 4,
-                    projectileSpeed = 55f,
-                    projectileLifetime = 4f,
-                    projectileRadius = 0.5f,
+                    // Lobbed free-fall bomb (Projectile adds gravity); not a powered missile.
+                    projectileSpeed = 38f,
+                    projectileLifetime = 5f,
+                    projectileRadius = 0.55f,
                     explosionRadius = 6f,
                     explosionDamage = 25f,
                     projectileColor = new Color(1f, 0.85f, 0.15f, 1f),
-                    projectileScale = 0.6f,
+                    projectileScale = 1.15f,
                     burnDuration = 5f,
                     burnDamagePerSecond = 18f,
                     burnRadius = 12f

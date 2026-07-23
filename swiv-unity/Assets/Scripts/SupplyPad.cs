@@ -393,13 +393,41 @@ public class SupplyPad : MonoBehaviour {
             Object.Destroy(ball.GetComponent<Collider>());
             ball.GetComponent<MeshRenderer>().sharedMaterial = cargoMat;
         } else if (type == WeaponType.Napalm) {
-            var can = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            can.name = "Body";
-            can.transform.SetParent(root.transform, false);
-            can.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            can.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
-            Object.Destroy(can.GetComponent<Collider>());
-            can.GetComponent<MeshRenderer>().sharedMaterial = cargoMat;
+            // Prefer the authored napalm bomb mesh; fall back to a squat capsule.
+            var bombMesh = Resources.Load<GameObject>("Prefabs/Weapons/Napalm");
+            if (bombMesh != null) {
+                var bomb = Object.Instantiate(bombMesh);
+                bomb.name = "Body";
+                bomb.transform.SetParent(root.transform, false);
+                bomb.transform.localPosition = Vector3.zero;
+                bomb.transform.localRotation = Quaternion.identity;
+                bomb.transform.localScale = Vector3.one * 1.8f;
+                foreach (var col in bomb.GetComponentsInChildren<Collider>()) {
+                    Object.Destroy(col);
+                }
+                // Soft yellow tint so it still reads as a supply icon without washing materials out.
+                foreach (var mr in bomb.GetComponentsInChildren<MeshRenderer>()) {
+                    if (mr == null) continue;
+                    var mats = mr.materials;
+                    for (int i = 0; i < mats.Length; i++) {
+                        if (mats[i] == null) continue;
+                        mats[i] = new Material(mats[i]);
+                        if (mats[i].HasProperty("_EmissionColor")) {
+                            mats[i].EnableKeyword("_EMISSION");
+                            mats[i].SetColor("_EmissionColor", ColorFor(type) * 0.35f);
+                        }
+                    }
+                    mr.materials = mats;
+                }
+            } else {
+                var can = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                can.name = "Body";
+                can.transform.SetParent(root.transform, false);
+                can.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                can.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
+                Object.Destroy(can.GetComponent<Collider>());
+                can.GetComponent<MeshRenderer>().sharedMaterial = cargoMat;
+            }
         } else {
             // Rocket / homing missile silhouette.
             var body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

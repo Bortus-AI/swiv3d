@@ -1,11 +1,15 @@
 using UnityEngine;
 
 /// <summary>
-/// Generic projectile used by plasma, rockets, homing missiles and napalm.
-/// Moves in a straight line (or homes), raycasts for hits, applies point + splash damage.
+/// Generic projectile used by plasma, rockets, homing missiles and napalm bombs.
+/// Moves in a straight line (or homes / arcs under gravity for bombs), raycasts for hits,
+/// applies point + splash damage.
 /// </summary>
 [RequireComponent(typeof(SphereCollider))]
 public class Projectile : MonoBehaviour {
+    /// <summary>Extra downward acceleration for free-fall bombs (napalm). m/s².</summary>
+    const float NapalmGravity = 28f;
+
     WeaponDefinition definition;
     Transform owner;
     Vector3 velocity;
@@ -49,21 +53,27 @@ public class Projectile : MonoBehaviour {
 
     void ApplyVisual(WeaponDefinition def) {
         var renderers = GetComponentsInChildren<MeshRenderer>();
-        for (int i = 0; i < renderers.Length; i++) {
-            var renderer = renderers[i];
-            if (renderer.gameObject.name == "SeekerTip" || renderer.material == null) {
-                continue;
-            }
-            renderer.material = new Material(renderer.material);
-            if (renderer.material.HasProperty("_Color")) {
-                renderer.material.color = def.projectileColor;
-            }
-            if (renderer.material.HasProperty("_BaseColor")) {
-                renderer.material.SetColor("_BaseColor", def.projectileColor);
-            }
-            if (renderer.material.HasProperty("_EmissionColor")) {
-                renderer.material.EnableKeyword("_EMISSION");
-                renderer.material.SetColor("_EmissionColor", def.projectileColor * 2f);
+        // Napalm uses an authored multi-material bomb mesh — keep those colors.
+        // Homing seeker tip keeps its own dark material.
+        bool preserveAuthoredMats = def.type == WeaponType.Napalm;
+
+        if (!preserveAuthoredMats) {
+            for (int i = 0; i < renderers.Length; i++) {
+                var renderer = renderers[i];
+                if (renderer.gameObject.name == "SeekerTip" || renderer.material == null) {
+                    continue;
+                }
+                renderer.material = new Material(renderer.material);
+                if (renderer.material.HasProperty("_Color")) {
+                    renderer.material.color = def.projectileColor;
+                }
+                if (renderer.material.HasProperty("_BaseColor")) {
+                    renderer.material.SetColor("_BaseColor", def.projectileColor);
+                }
+                if (renderer.material.HasProperty("_EmissionColor")) {
+                    renderer.material.EnableKeyword("_EMISSION");
+                    renderer.material.SetColor("_EmissionColor", def.projectileColor * 2f);
+                }
             }
         }
 
@@ -71,14 +81,17 @@ public class Projectile : MonoBehaviour {
         if (trail == null) {
             trail = gameObject.AddComponent<TrailRenderer>();
         }
-        // Plasma is a glowing ball — short soft halo trail. Specials keep a longer smoke streak.
+        // Plasma is a glowing ball — short soft halo trail. Bombs get a thin smoke streak.
         bool plasmaBall = def.type == WeaponType.Plasma;
-        trail.time = plasmaBall ? 0.08f : 0.25f;
+        bool napalmBomb = def.type == WeaponType.Napalm;
+        trail.time = plasmaBall ? 0.08f : (napalmBomb ? 0.35f : 0.25f);
         trail.startWidth = plasmaBall ? def.projectileScale * 2.2f : def.projectileScale * 0.6f;
         trail.endWidth = plasmaBall ? 0.05f : 0.02f;
         trail.material = new Material(Shader.Find("Sprites/Default"));
-        trail.startColor = def.projectileColor;
-        trail.endColor = new Color(def.projectileColor.r, def.projectileColor.g, def.projectileColor.b, 0f);
+        trail.startColor = napalmBomb
+            ? new Color(0.35f, 0.32f, 0.28f, 0.7f)
+            : def.projectileColor;
+        trail.endColor = new Color(trail.startColor.r, trail.startColor.g, trail.startColor.b, 0f);
         trail.minVertexDistance = plasmaBall ? 0.05f : 0.2f;
         // Stronger emission on plasma so the sphere reads as an energy ball, not a dull marble.
         if (plasmaBall) {
@@ -116,6 +129,11 @@ public class Projectile : MonoBehaviour {
             UpdateHoming();
         }
 
+        // Free-fall bomb arc (napalm) — not a powered missile.
+        if (definition.type == WeaponType.Napalm) {
+            velocity += Vector3.down * NapalmGravity * Time.deltaTime;
+        }
+
         float step = velocity.magnitude * Time.deltaTime;
         Vector3 dir = velocity.normalized;
         if (step > 0f && Physics.SphereCast(transform.position, definition.projectileRadius, dir, out RaycastHit hit, step, ~0, QueryTriggerInteraction.Ignore)) {
@@ -132,7 +150,7 @@ public class Projectile : MonoBehaviour {
         if (velocity.sqrMagnitude > 0.001f) {
             Quaternion facing = Quaternion.LookRotation(velocity.normalized, Vector3.up);
             if (definition.type == WeaponType.Napalm) {
-                tumbleAngle += 220f * Time.deltaTime;
+                tumbleAngle += 180f * Time.deltaTime;
                 transform.rotation = facing * Quaternion.Euler(tumbleAngle, 0f, 0f);
             } else {
                 transform.rotation = facing;

@@ -332,10 +332,13 @@ public class PlayerWeapons : MonoBehaviour {
 
     void FireProjectile(WeaponDefinition def) {
         Vector3 origin = firePoint.position;
-        // Fire roughly along heli forward; slight downward bias helps ground targets.
-        Vector3 direction = (transform.forward + Vector3.down * 0.05f).normalized;
+        // Rockets/missiles: slight downward bias. Napalm bombs: lobbed drop, not a missile launch.
+        float downBias = def.type == WeaponType.Napalm ? 0.55f : 0.05f;
+        Vector3 direction = (transform.forward + Vector3.down * downBias).normalized;
         Projectile.CreateRuntime(def, origin, direction, transform);
-        WeaponVisuals.SpawnMuzzleFlash(def.type, firePoint);
+        if (def.type != WeaponType.Napalm) {
+            WeaponVisuals.SpawnMuzzleFlash(def.type, firePoint);
+        }
     }
 
     void FireSmartBomb(WeaponDefinition def) {
